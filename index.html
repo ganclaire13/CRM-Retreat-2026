@@ -152,6 +152,19 @@
   .hotel-banner .hname{font-family:var(--fdisplay);font-size:18px;font-weight:700;color:var(--teal-d)}
   .hotel-banner .hsub{font-size:12.5px;color:var(--ink2);font-weight:700;margin-top:1px}
   .hotel-banner .haddr{font-size:12px;color:var(--ink2);font-weight:700;margin-top:3px;display:flex;align-items:center;gap:5px}
+  .leg{margin-bottom:16px}
+  .leg:last-child{margin-bottom:0}
+  .leg-title{font-family:var(--fdisplay);font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .leg-title i{color:var(--coral)}
+  .fcard{border:2px solid var(--line);border-radius:var(--rs);padding:12px 14px;margin-bottom:10px}
+  .fcard:last-child{margin-bottom:0}
+  .fcard-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .fno{font-family:var(--fdisplay);font-weight:700;font-size:16px;color:var(--coral-d);background:var(--coral-l);border-radius:20px;padding:2px 12px}
+  .fdate{font-size:12.5px;font-weight:800;color:var(--ink2)}
+  .ftime{font-size:12.5px;font-weight:700;color:var(--ink2);margin-left:auto;display:flex;align-items:center;gap:5px}
+  .ftime i{color:var(--teal-d)}
+  .fpax{display:flex;flex-wrap:wrap;gap:6px}
+  .fpax .px{font-size:12.5px;font-weight:800;background:var(--gold-l);color:#7a5300;border-radius:20px;padding:3px 11px}
 
   .mapwrap{height:380px;border-radius:var(--r);overflow:hidden;border:2px solid var(--line);margin-bottom:12px;box-shadow:0 4px 0 var(--line)}
   #map{height:100%;width:100%}
@@ -333,15 +346,8 @@
     <h2 class="sec"><i class="fa-solid fa-clipboard-list"></i> Logistics &amp; Admin</h2>
     <p class="lede">Flights, rooms and booking references in one place. Anyone can update; please keep it tidy.</p>
     <div class="card">
-      <h3 style="font-size:18px;margin-bottom:10px;font-family:var(--fdisplay);color:var(--coral-d)"><i class="fa-solid fa-plane"></i> Flights</h3>
-      <div style="overflow-x:auto"><table id="flight-tbl"></table></div>
-      <div class="add-row" style="margin-top:12px">
-        <div><input id="fl-who" placeholder="Name"></div>
-        <div><input id="fl-batch" placeholder="Batch 1 / 2"></div>
-        <div><input id="fl-flight" placeholder="Flight no."></div>
-        <div><input id="fl-time" placeholder="Dep time"></div>
-        <button class="btn sm" onclick="addFlight()">Add</button>
-      </div>
+      <h3 style="font-size:18px;margin-bottom:12px;font-family:var(--fdisplay);color:var(--coral-d)"><i class="fa-solid fa-plane"></i> Flights</h3>
+      <div id="flight-body"></div>
     </div>
     <div class="hotel-banner">
       <div class="hico"><i class="fa-solid fa-hotel"></i></div>
@@ -469,7 +475,6 @@ async function loadAll(){
   S.suggestions = await dbGet("suggestions5", JSON.parse(JSON.stringify(SEED_SUGGESTIONS)));
   S.bookings = await dbGet("bookings4", JSON.parse(JSON.stringify(SEED_BOOKINGS)));
   S.pins = await dbGet("pins", []);
-  S.flights = await dbGet("flights2", []);
   S.rooms = await dbGet("rooms", []);
   S.expenses = await dbGet("expenses", []);
 }
@@ -677,24 +682,26 @@ async function removePin(id){
   if(!confirm('Delete the pin "'+p.name+'"?'))return;
   S.pins=S.pins.filter(x=>x.id!==id); await dbSet("pins",S.pins); drawPins(); toast("Pin deleted");
 }
+// Static flight manifest — edit here if anything changes.
+const FLIGHTS = [
+  { leg:"Singapore → Guangzhou", icon:"fa-plane-departure", flights:[
+    { no:"SQ852", date:"19 Aug 2026", time:"7.50pm – 12.15am", pax:["Kian Hsing","Chee Siong","Wendy","Yujing","Shaoxuan","Chrystal","Grace"] },
+    { no:"TR100",  date:"20 Aug 2026", time:"5.15am – 9.25am",  pax:["Haneesa","Claire","Vanessa"] }
+  ]},
+  { leg:"Guangzhou → Singapore", icon:"fa-plane-arrival", flights:[
+    { no:"SQ853",  date:"23 Aug 2026", time:"1.20am – 5.30am",  pax:["Kian Hsing","Chee Siong","Wendy","Yujing","Shaoxuan","Chrystal","Grace","Haneesa"] },
+    { no:"CZ8489", date:"22 Aug 2026", time:"11.00pm – 3.05am", pax:["Claire","Vanessa"] }
+  ]}
+];
 function renderFlights(){
-  const t=document.getElementById("flight-tbl");
-  t.innerHTML='<tr><th>Name</th><th>Batch</th><th>Flight</th><th>Departs</th><th></th></tr>'+
-    (S.flights.length?S.flights.map(f=>'<tr><td>'+f.who+'</td><td>'+f.batch+'</td><td>'+f.flight+'</td><td>'+f.time+'</td><td style="text-align:right"><button class="btn sm danger" onclick="delFlight(\''+f.id+'\')">×</button></td></tr>').join("")
-    :'<tr><td colspan="5" class="empty">No flights logged yet. Batch 1 = 7.50pm 19 Aug · Batch 2 = 3.55am 20 Aug.</td></tr>');
-}
-async function addFlight(){
-  const g=id=>document.getElementById(id);
-  const who=g("fl-who").value.trim(),batch=g("fl-batch").value.trim(),flight=g("fl-flight").value.trim(),time=g("fl-time").value.trim();
-  if(!who)return toast("Enter a name");
-  S.flights.push({id:"f"+Date.now(),who,batch,flight,time});
-  await dbSet("flights2",S.flights);
-  ["fl-who","fl-batch","fl-flight","fl-time"].forEach(x=>g(x).value=""); renderFlights(); toast("Flight added");
-}
-async function delFlight(id){
-  const f=S.flights.find(x=>x.id===id); if(!f)return;
-  if(!confirm('Delete this flight entry'+(f.who?' for '+f.who:'')+'?'))return;
-  S.flights=S.flights.filter(x=>x.id!==id); await dbSet("flights2",S.flights); renderFlights(); toast("Deleted");
+  const el=document.getElementById("flight-body");
+  el.innerHTML=FLIGHTS.map(L=>
+    '<div class="leg"><div class="leg-title"><i class="fa-solid '+L.icon+'"></i> '+L.leg+'</div>'+
+    L.flights.map(f=>
+      '<div class="fcard"><div class="fcard-head"><span class="fno">'+f.no+'</span><span class="fdate">'+f.date+'</span><span class="ftime"><i class="fa-solid fa-clock"></i> '+f.time+'</span></div>'+
+      '<div class="fpax">'+f.pax.map(p=>'<span class="px">'+p+'</span>').join("")+'</div></div>'
+    ).join("")+'</div>'
+  ).join("");
 }
 function renderRooms(){
   const t=document.getElementById("room-tbl");
