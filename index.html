@@ -657,7 +657,7 @@ function drawPins(){
 function renderPinList(){
   const el=document.getElementById("pin-list");
   if(!S.pins.length){ el.innerHTML='<div class="empty">📍 No places pinned yet - be the first!</div>'; return; }
-  el.innerHTML='<div class="card tight">'+S.pins.map(p=>'<div class="book-item"><div class="bname"><span class="pill '+(p.type==='food'?'coral':p.type==='cafe'?'gold':p.type==='shop'?'sky':'teal')+'">'+p.type+'</span> '+p.name+'<div class="bnote">by '+p.by+'</div></div><button class="btn sm ghost" onclick="map.setView(['+p.lat+','+p.lng+'],15)">Show</button></div>').join("")+'</div>';
+  el.innerHTML='<div class="card tight">'+S.pins.map(p=>'<div class="book-item"><div class="bname"><span class="pill '+(p.type==='food'?'coral':p.type==='cafe'?'gold':p.type==='shop'?'sky':'teal')+'">'+p.type+'</span> '+p.name+'<div class="bnote">by '+p.by+'</div></div><button class="btn sm ghost" onclick="map.setView(['+p.lat+','+p.lng+'],15)">Show</button><button class="btn sm danger" title="Delete this pin" onclick="removePin(\''+p.id+'\')"><i class="fa-solid fa-xmark"></i></button></div>').join("")+'</div>';
 }
 function startPin(){
   if(!requireMe())return;
@@ -672,7 +672,11 @@ async function placePinAt(latlng){
   await dbSet("pins",S.pins);
   document.getElementById("pin-name").value=""; drawPins(); toast("Pinned "+name+"! 📍");
 }
-async function removePin(id){ S.pins=S.pins.filter(p=>p.id!==id); await dbSet("pins",S.pins); drawPins(); }
+async function removePin(id){
+  const p=S.pins.find(x=>x.id===id); if(!p)return;
+  if(!confirm('Delete the pin "'+p.name+'"?'))return;
+  S.pins=S.pins.filter(x=>x.id!==id); await dbSet("pins",S.pins); drawPins(); toast("Pin deleted");
+}
 function renderFlights(){
   const t=document.getElementById("flight-tbl");
   t.innerHTML='<tr><th>Name</th><th>Batch</th><th>Flight</th><th>Departs</th><th></th></tr>'+
@@ -680,12 +684,18 @@ function renderFlights(){
     :'<tr><td colspan="5" class="empty">No flights logged yet. Batch 1 = 7.50pm 19 Aug · Batch 2 = 3.55am 20 Aug.</td></tr>');
 }
 async function addFlight(){
-  const who=fl_who.value.trim(),batch=fl_batch.value.trim(),flight=fl_flight.value.trim(),time=fl_time.value.trim();
+  const g=id=>document.getElementById(id);
+  const who=g("fl-who").value.trim(),batch=g("fl-batch").value.trim(),flight=g("fl-flight").value.trim(),time=g("fl-time").value.trim();
   if(!who)return toast("Enter a name");
   S.flights.push({id:"f"+Date.now(),who,batch,flight,time});
-  await dbSet("flights2",S.flights); [fl_who,fl_batch,fl_flight,fl_time].forEach(x=>x.value=""); renderFlights();
+  await dbSet("flights2",S.flights);
+  ["fl-who","fl-batch","fl-flight","fl-time"].forEach(x=>g(x).value=""); renderFlights(); toast("Flight added");
 }
-async function delFlight(id){ S.flights=S.flights.filter(f=>f.id!==id); await dbSet("flights2",S.flights); renderFlights(); }
+async function delFlight(id){
+  const f=S.flights.find(x=>x.id===id); if(!f)return;
+  if(!confirm('Delete this flight entry'+(f.who?' for '+f.who:'')+'?'))return;
+  S.flights=S.flights.filter(x=>x.id!==id); await dbSet("flights2",S.flights); renderFlights(); toast("Deleted");
+}
 function renderRooms(){
   const t=document.getElementById("room-tbl");
   t.innerHTML='<tr><th>Room</th><th>Guests</th><th>Booking ID</th><th></th></tr>'+
@@ -693,12 +703,18 @@ function renderRooms(){
     :'<tr><td colspan="4" class="empty">No rooms logged yet.</td></tr>');
 }
 async function addRoom(){
-  const room=rm_room.value.trim(),guests=rm_guests.value.trim(),bid=rm_id.value.trim();
+  const g=id=>document.getElementById(id);
+  const room=g("rm-room").value.trim(),guests=g("rm-guests").value.trim(),bid=g("rm-id").value.trim();
   if(!guests)return toast("Enter guests");
   S.rooms.push({id:"r"+Date.now(),room,guests,bid});
-  await dbSet("rooms",S.rooms); [rm_room,rm_guests,rm_id].forEach(x=>x.value=""); renderRooms();
+  await dbSet("rooms",S.rooms);
+  ["rm-room","rm-guests","rm-id"].forEach(x=>g(x).value=""); renderRooms(); toast("Room added");
 }
-async function delRoom(id){ S.rooms=S.rooms.filter(r=>r.id!==id); await dbSet("rooms",S.rooms); renderRooms(); }
+async function delRoom(id){
+  const r=S.rooms.find(x=>x.id===id); if(!r)return;
+  if(!confirm('Delete this room entry'+(r.guests?' ('+r.guests+')':'')+'?'))return;
+  S.rooms=S.rooms.filter(x=>x.id!==id); await dbSet("rooms",S.rooms); renderRooms(); toast("Deleted");
+}
 function renderExpenseControls(){
   const sel=document.getElementById("ex-by");
   sel.innerHTML=TEAM.map(n=>'<option '+(n===ME?'selected':'')+'>'+n+'</option>').join("");
@@ -715,12 +731,17 @@ function renderExpenses(){
     :'<tr><td colspan="4" class="empty">No expenses logged yet.</td></tr>');
 }
 async function addExpense(){
-  const desc=ex_desc.value.trim(),amt=ex_amt.value,cur=ex_cur.value,by=ex_by.value;
+  const g=id=>document.getElementById(id);
+  const desc=g("ex-desc").value.trim(),amt=g("ex-amt").value,cur=g("ex-cur").value,by=g("ex-by").value;
   if(!desc||!amt)return toast("Fill what & amount");
   S.expenses.push({id:"e"+Date.now(),desc,amt,cur,by});
-  await dbSet("expenses",S.expenses); ex_desc.value="";ex_amt.value=""; renderExpenses(); toast("Logged! 💰");
+  await dbSet("expenses",S.expenses); g("ex-desc").value="";g("ex-amt").value=""; renderExpenses(); toast("Logged! 💰");
 }
-async function delExpense(id){ S.expenses=S.expenses.filter(e=>e.id!==id); await dbSet("expenses",S.expenses); renderExpenses(); }
+async function delExpense(id){
+  const e=S.expenses.find(x=>x.id===id); if(!e)return;
+  if(!confirm('Delete this expense'+(e.desc?' ("'+e.desc+'")':'')+'?'))return;
+  S.expenses=S.expenses.filter(x=>x.id!==id); await dbSet("expenses",S.expenses); renderExpenses(); toast("Deleted");
+}
 async function boot(){
   buildTabs(); await loadAll();
   if(ME){ document.getElementById("whoami-txt").innerHTML="You're <b>"+ME+"</b>"; }
